@@ -16,7 +16,7 @@ export interface SearchResult {
   address: string;
   coordinates: Coordinates;
 }
-
+// ...existing code...
 export interface Milestone {
   id: string;
   name: string;
@@ -26,7 +26,7 @@ export interface Milestone {
   order: number;
   completed: boolean;
 }
-
+// ...existing code...
 export interface RouteSegment {
   from: Milestone;
   to: Milestone;

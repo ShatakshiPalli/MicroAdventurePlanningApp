@@ -10,18 +10,14 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+// @ts-ignore - We'll handle type properly in the component
+import { RouteMap } from '../../components/RouteMap';
 import { getCurrentLocation, searchPlaces } from '../../services/locationService';
 import { useMilestoneStore } from '../../store/milestoneStore';
 import { Milestone, OptimizedRoute, SearchResult } from '../../types/route';
 import { optimizeRoute } from '../../utils/routeUtils';
 
-// Import MapLibre (using @rnmapbox/maps - the correct Expo-compatible MapLibre package)
-import Mapbox from '@rnmapbox/maps';
-
 const { width, height } = Dimensions.get('window');
-
-// Initialize MapLibre with your access token
-Mapbox.setAccessToken('pk.bb3ba6c4884db59d0c3bde27848f25fc');
 
 export default function RoutePlannerScreen() {
   const { milestones, addMilestone, removeMilestone, loadStoredMilestones, setMilestones } = useMilestoneStore();
@@ -31,18 +27,18 @@ export default function RoutePlannerScreen() {
   const [duration, setDuration] = useState(30);
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  
+
   // Route optimization states
   const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null);
   const [showOptimizedRoute, setShowOptimizedRoute] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentMilestoneIndex, setCurrentMilestoneIndex] = useState(0);
-  
+
   // Route and directions states
   const [routeCoordinates, setRouteCoordinates] = useState<{latitude: number; longitude: number}[]>([]);
   const [alternateRoutes, setAlternateRoutes] = useState<any[]>([]);
   const [showAlternateRoutes, setShowAlternateRoutes] = useState(false);
-  
+
   const [mapRegion, setMapRegion] = useState({
     latitude: 37.78825,
     longitude: -122.4324,
@@ -58,8 +54,7 @@ export default function RoutePlannerScreen() {
       } else {
         setSearchResults([]);
       }
-    }, 500); // 500ms delay
-
+    }, 500);
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
@@ -74,14 +69,10 @@ export default function RoutePlannerScreen() {
 
   useEffect(() => {
     loadStoredMilestones();
-    
-    // Request location immediately when component mounts
     const getLocation = async () => {
       try {
-        console.log('🔍 Getting user location...');
         const location = await getCurrentLocation();
         if (location) {
-          console.log('✅ Location received:', location);
           setUserLocation(location);
           setMapRegion({
             latitude: location.latitude,
@@ -90,8 +81,6 @@ export default function RoutePlannerScreen() {
             longitudeDelta: 0.0421,
           });
         } else {
-          console.log('❌ No location received');
-          // Set a default location if no location is available
           setMapRegion({
             latitude: 37.78825,
             longitude: -122.4324,
@@ -103,30 +92,24 @@ export default function RoutePlannerScreen() {
         console.error('Location fetch error:', error);
       }
     };
-    
     getLocation();
   }, [loadStoredMilestones]);
 
   const calculateRegion = (milestones: Milestone[]) => {
     if (milestones.length === 0) return null;
-
     try {
       const validMilestones = milestones.filter(m => m.coordinates);
       if (validMilestones.length === 0) return null;
-      
       const lats = validMilestones.map(m => m.coordinates.latitude);
       const lngs = validMilestones.map(m => m.coordinates.longitude);
-      
       const minLat = Math.min(...lats);
       const maxLat = Math.max(...lats);
       const minLng = Math.min(...lngs);
       const maxLng = Math.max(...lngs);
-      
       const centerLat = (minLat + maxLat) / 2;
       const centerLng = (minLng + maxLng) / 2;
       const deltaLat = Math.max(maxLat - minLat, 0.02);
       const deltaLng = Math.max(maxLng - minLng, 0.02);
-      
       return {
         latitude: centerLat,
         longitude: centerLng,
@@ -140,10 +123,8 @@ export default function RoutePlannerScreen() {
   };
 
   const refreshLocation = async () => {
-    console.log('🔄 Manually refreshing location...');
     const location = await getCurrentLocation();
     if (location) {
-      console.log('✅ Location refreshed:', location);
       setUserLocation(location);
       setMapRegion({
         latitude: location.latitude,
@@ -159,11 +140,8 @@ export default function RoutePlannerScreen() {
 
   const drawRouteBetweenMilestones = async () => {
     if (milestones.length < 2) return;
-    
     try {
       const coordinates: {latitude: number; longitude: number}[] = [];
-      
-      // Add all milestone coordinates directly to avoid API rate limiting
       for (let i = 0; i < milestones.length; i++) {
         const milestone = milestones[i];
         if (milestone.coordinates) {
@@ -173,10 +151,7 @@ export default function RoutePlannerScreen() {
           });
         }
       }
-      
       setRouteCoordinates(coordinates);
-      
-      // Update map region to show all points
       const region = calculateRegion(milestones);
       if (region) {
         setMapRegion(region);
@@ -191,22 +166,18 @@ export default function RoutePlannerScreen() {
       setSearchResults([]);
       return;
     }
-    
     setIsSearching(true);
     try {
+      // LocationIQ searchPlaces implementation uses your token
       const places = await searchPlaces(searchQuery, userLocation || undefined);
-      // searchPlaces already returns formatted SearchResult-like objects
       const formattedPlaces: SearchResult[] = places.map((place, index) => ({
         id: place.id || `search_${index}`,
         name: place.name,
         address: place.address,
         coordinates: place.coordinates
       }));
-
       setSearchResults(formattedPlaces);
     } catch (error) {
-      console.error('Search error:', error);
-      // Don't show error alerts for dynamic search
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -216,9 +187,7 @@ export default function RoutePlannerScreen() {
   const handleSelectPlace = (place: SearchResult) => {
     setSelectedPlace(place);
     setSearchResults([]);
-    setSearchQuery(''); // Clear search bar automatically
-    
-    // Automatically add to route if it's the first or second location
+    setSearchQuery('');
     if (milestones.length < 2) {
       handleAddToRoute(place);
     }
@@ -227,7 +196,6 @@ export default function RoutePlannerScreen() {
   const handleAddToRoute = (place?: SearchResult) => {
     const placeToAdd = place || selectedPlace;
     if (!placeToAdd) return;
-
     const newMilestone: Milestone = {
       id: `milestone_${Date.now()}`,
       name: placeToAdd.name,
@@ -240,25 +208,20 @@ export default function RoutePlannerScreen() {
       order: milestones.length,
       completed: false,
     };
-
     addMilestone(newMilestone);
     setSelectedPlace(null);
     setSearchQuery('');
-    
-    // Update map region to show the new location
     setMapRegion({
       latitude: placeToAdd.coordinates.latitude,
       longitude: placeToAdd.coordinates.longitude,
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
     });
-    
     Alert.alert('Added to Route!', `${placeToAdd.name} has been added to your route.`);
   };
 
   const handleRemoveFromRoute = (milestoneId: string) => {
     removeMilestone(milestoneId);
-    // Reset optimization when milestones change
     setOptimizedRoute(null);
     setShowOptimizedRoute(false);
     setRouteCoordinates([]);
@@ -269,18 +232,13 @@ export default function RoutePlannerScreen() {
       Alert.alert('Alternate Routes', 'Please add at least 2 destinations to see alternate routes.');
       return;
     }
-
     try {
       const routes = [];
-      
-      // Generate different route combinations
       for (let i = 0; i < Math.min(milestones.length, 3); i++) {
         const shuffledMilestones = [...milestones];
-        // Simple shuffle for alternate route
         if (i > 0) {
           shuffledMilestones.reverse();
         }
-        
         if (userLocation) {
           const alternateRoute = optimizeRoute(shuffledMilestones, userLocation);
           routes.push({
@@ -291,10 +249,8 @@ export default function RoutePlannerScreen() {
           });
         }
       }
-      
       setAlternateRoutes(routes);
       setShowAlternateRoutes(true);
-      
       Alert.alert(
         'Alternate Routes Available',
         `Found ${routes.length} different route options. Choose the one that suits you best.`
@@ -310,23 +266,18 @@ export default function RoutePlannerScreen() {
       Alert.alert('Route Optimization', 'Please add at least 2 destinations to optimize the route.');
       return;
     }
-
     if (!userLocation) {
       Alert.alert('Location Required', 'Please enable location services to optimize the route.');
       return;
     }
-
     try {
       const result = optimizeRoute(milestones, userLocation);
       setOptimizedRoute(result);
       setShowOptimizedRoute(true);
-      
-      // Update map region to show optimized route
       const region = calculateRegion(result.milestones);
       if (region) {
         setMapRegion(region);
       }
-      
       Alert.alert(
         'Route Optimized!',
         `Total Distance: ${result.totalDistance.toFixed(1)} km\nEstimated Time: ${Math.round(result.estimatedTotalTime / 60)}h ${result.estimatedTotalTime % 60}m\n\nRoute has been optimized for shortest distance.`
@@ -339,7 +290,6 @@ export default function RoutePlannerScreen() {
 
   const handleStartNavigation = () => {
     if (!optimizedRoute) return;
-    
     setIsNavigating(true);
     setCurrentMilestoneIndex(0);
     Alert.alert('Navigation Started!', 'Follow the optimized route to complete your micro adventure.');
@@ -347,10 +297,8 @@ export default function RoutePlannerScreen() {
 
   const handleNextMilestone = () => {
     if (!optimizedRoute || currentMilestoneIndex >= optimizedRoute.milestones.length - 1) return;
-    
     const nextIndex = currentMilestoneIndex + 1;
     setCurrentMilestoneIndex(nextIndex);
-    
     if (nextIndex >= optimizedRoute.milestones.length - 1) {
       Alert.alert('Adventure Complete!', 'Congratulations! You have completed your micro adventure route.');
       setIsNavigating(false);
@@ -362,8 +310,8 @@ export default function RoutePlannerScreen() {
   const getRouteCoordinates = () => {
     if (!showOptimizedRoute || !optimizedRoute) return [];
     return optimizedRoute.milestones
-      .filter(milestone => milestone.coordinates && 
-        !isNaN(milestone.coordinates.latitude) && 
+      .filter(milestone => milestone.coordinates &&
+        !isNaN(milestone.coordinates.latitude) &&
         !isNaN(milestone.coordinates.longitude))
       .map(milestone => ({
         latitude: milestone.coordinates.latitude,
@@ -373,15 +321,11 @@ export default function RoutePlannerScreen() {
 
   const getRouteDetails = () => {
     if (!optimizedRoute) return [];
-    
     const details = [];
     for (let i = 0; i < optimizedRoute.milestones.length - 1; i++) {
       const from = optimizedRoute.milestones[i];
       const to = optimizedRoute.milestones[i + 1];
-      
       if (!from.coordinates || !to.coordinates) continue;
-      
-      // Calculate distance using Haversine formula
       const R = 6371; // Earth's radius in km
       const dLat = (to.coordinates.latitude - from.coordinates.latitude) * Math.PI / 180;
       const dLon = (to.coordinates.longitude - from.coordinates.longitude) * Math.PI / 180;
@@ -390,7 +334,6 @@ export default function RoutePlannerScreen() {
                 Math.sin(dLon/2) * Math.sin(dLon/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       const distance = R * c;
-      
       details.push({
         from: from.name,
         to: to.name,
@@ -398,140 +341,15 @@ export default function RoutePlannerScreen() {
         time: Math.round(distance * 2) // Rough estimate: 2 minutes per km
       });
     }
-    
     return details;
   };
 
-  const renderMap = () => {
-    const validMilestones = (showOptimizedRoute && optimizedRoute ? optimizedRoute.milestones : milestones)
-      .filter(milestone => milestone.coordinates && 
-        !isNaN(milestone.coordinates.latitude) && 
-        !isNaN(milestone.coordinates.longitude) &&
-        milestone.coordinates.latitude >= -90 && milestone.coordinates.latitude <= 90 &&
-        milestone.coordinates.longitude >= -180 && milestone.coordinates.longitude <= 180);
-
-    return (
-      <View style={styles.section}>
-        {/* MapLibre Map Implementation */}
-        <Mapbox.MapView
-          style={styles.map}
-          styleURL="mapbox://styles/mapbox/streets-v11"
-        >
-          <Mapbox.Camera
-            centerCoordinate={[mapRegion.longitude, mapRegion.latitude]}
-            zoomLevel={12}
-            animationMode="flyTo"
-            animationDuration={1000}
-          />
-
-          {/* User location marker */}
-          {userLocation && (
-            <Mapbox.PointAnnotation
-              id="userLocation"
-              coordinate={[userLocation.longitude, userLocation.latitude]}
-            >
-              <View style={styles.userLocationMarker}>
-                <Text style={styles.markerText}>📍</Text>
-              </View>
-              <Mapbox.Callout title="Your Current Location" />
-            </Mapbox.PointAnnotation>
-          )}
-          
-          {/* Milestone markers */}
-          {validMilestones.map((milestone, index) => (
-            <Mapbox.PointAnnotation
-              key={milestone.id}
-              id={`milestone-${milestone.id}`}
-              coordinate={[milestone.coordinates.longitude, milestone.coordinates.latitude]}
-            >
-              <View style={[
-                styles.milestoneMarker,
-                { backgroundColor: isNavigating && index === currentMilestoneIndex ? 'green' : 'red' }
-              ]}>
-                <Text style={styles.markerText}>{index + 1}</Text>
-              </View>
-              <Mapbox.Callout title={milestone.name} />
-            </Mapbox.PointAnnotation>
-          ))}
-          
-          {/* Route line */}
-          {routeCoordinates.length > 1 && (
-            <Mapbox.ShapeSource 
-              id="routeSource" 
-              shape={{
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'LineString',
-                  coordinates: routeCoordinates.map(coord => [coord.longitude, coord.latitude])
-                }
-              }}
-            >
-              <Mapbox.LineLayer
-                id="routeLayer"
-                style={{
-                  lineColor: '#007AFF',
-                  lineWidth: 4,
-                  lineDasharray: [5, 5]
-                }}
-              />
-            </Mapbox.ShapeSource>
-          )}
-          
-          {/* Optimized route line */}
-          {showOptimizedRoute && optimizedRoute && optimizedRoute.milestones.length > 1 && (
-            <Mapbox.ShapeSource 
-              id="optimizedRouteSource" 
-              shape={{
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'LineString',
-                  coordinates: getRouteCoordinates().map(coord => [coord.longitude, coord.latitude])
-                }
-              }}
-            >
-              <Mapbox.LineLayer
-                id="optimizedRouteLayer"
-                style={{
-                  lineColor: '#FF9500',
-                  lineWidth: 6
-                }}
-              />
-            </Mapbox.ShapeSource>
-          )}
-        </Mapbox.MapView>
-        
-        {/* Location info display */}
-        {userLocation && (
-          <View style={styles.locationInfo}>
-            <Text style={styles.locationText}>
-              📍 Current Location: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
-            </Text>
-          </View>
-        )}
-        
-        {/* Location controls */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.addButton} 
-            onPress={refreshLocation}
-          >
-            <Text style={styles.addButtonText}>📍 Refresh My Location</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Map overlay buttons */}
-        {milestones.length >= 2 && (
-          <TouchableOpacity 
-            style={styles.optimizeButton} 
-            onPress={handleShowAlternateRoutes}
-          >
-            <Text style={styles.optimizeButtonText}>Show Alternate Routes</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
+  // Get current milestone ID based on navigation state
+  const getCurrentMilestoneId = () => {
+    if (isNavigating && milestones.length > currentMilestoneIndex) {
+      return milestones[currentMilestoneIndex].id;
+    }
+    return null;
   };
 
   return (
@@ -544,7 +362,36 @@ export default function RoutePlannerScreen() {
       {/* Map Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Route Map</Text>
-        {renderMap()}
+        <View style={styles.map}>
+          <RouteMap 
+            milestones={showOptimizedRoute && optimizedRoute ? optimizedRoute.milestones : milestones} 
+            currentMilestoneId={getCurrentMilestoneId()} 
+          />
+        </View>
+        {/* Location info display */}
+        {userLocation && (
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationText}>
+              📍 Current Location: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+            </Text>
+          </View>
+        )}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={refreshLocation}
+          >
+            <Text style={styles.addButtonText}>📍 Refresh My Location</Text>
+          </TouchableOpacity>
+          {milestones.length >= 2 && (
+            <TouchableOpacity
+              style={styles.optimizeButton}
+              onPress={handleShowAlternateRoutes}
+            >
+              <Text style={styles.optimizeButtonText}>Show Alternate Routes</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Search Section */}
@@ -775,6 +622,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 250,
     borderRadius: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
   },
   mapPlaceholder: {
     width: '100%',

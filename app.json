@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show your position on the map and provide navigation directions.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to show your position on the map and provide navigation directions."
-      }
+      },
+      "bundleIdentifier": "com.anonymous.micro-adventure-route-planner"
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +44,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-maps"
+      "expo-maps",
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true
